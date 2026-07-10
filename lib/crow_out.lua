@@ -40,10 +40,10 @@ local function configure_outputs()
 end
 
 function crow_out.setup()
+  -- reconfigure whenever Crow (re)connects; also configure now in case it is
+  -- already present. crow autoconnects on norns, so no explicit clear/init needed.
   crow.add = function() build_voices(); configure_outputs() end
   crow.remove = function() end
-  norns.crow.clear()
-  crow.init()
   build_voices()
   configure_outputs()
 end
