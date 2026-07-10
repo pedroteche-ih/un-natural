@@ -66,28 +66,33 @@ local function rebuild()
 
   nonmembers_playable = params:get("un_nonmembers") == 2
 
-  local anchor_i = util.clamp(params:get("un_anchor"), 1, scale.count)
-
-  -- gz (rotation axis) is always auto-derived; gx/gy may be manual
-  local agx, agy, gz = cps.default_generators(scale, anchor_i)
-  local gx, gy
-  if params:get("un_gen_mode") == 1 then         -- auto: derive from CPS graph
-    gx, gy = agx, agy
-  else                                           -- manual
-    gx = params:get("un_gx_num") / params:get("un_gx_den")
-    gy = params:get("un_gy_num") / params:get("un_gy_den")
-  end
-
-  -- rotation strip shifts the anchor along gz, sliding the visible slice
-  local anchor_ratio = ji.octave_reduce(scale.notes[anchor_i].ratio * (gz ^ z_offset))
-
-  current_layout = layout_lib.build(scale, {
-    gen_x = gx, gen_y = gy, anchor_ratio = anchor_ratio,
+  local mode = (params:get("un_layout") == 2) and "lattice" or "scale"
+  local opts = {
+    mode = mode,
     grid_w = grid_ui.playing_width(), grid_h = grid_ui.height(),
     origin_x = params:get("un_origin_x"), origin_y = params:get("un_origin_y"),
     root_freq = params:get("un_root_hz"),
-    nonmember_level = nonmembers_playable and 2 or 0,
-  })
+  }
+
+  if mode == "lattice" then
+    local anchor_i = util.clamp(params:get("un_anchor"), 1, scale.count)
+    -- gz (rotation axis) is always auto-derived; gx/gy may be manual
+    local agx, agy, gz = cps.default_generators(scale, anchor_i)
+    if params:get("un_gen_mode") == 1 then       -- auto: derive from CPS graph
+      opts.gen_x, opts.gen_y = agx, agy
+    else                                         -- manual
+      opts.gen_x = params:get("un_gx_num") / params:get("un_gx_den")
+      opts.gen_y = params:get("un_gy_num") / params:get("un_gy_den")
+    end
+    -- rotation strip shifts the anchor along gz, sliding the visible slice
+    opts.anchor_ratio = ji.octave_reduce(scale.notes[anchor_i].ratio * (gz ^ z_offset))
+    opts.nonmember_level = nonmembers_playable and 2 or 0
+  else
+    -- scale mode: rotation strip transposes the whole board by octaves
+    opts.z_offset = z_offset
+  end
+
+  current_layout = layout_lib.build(scale, opts)
   grid_ui.set_layout(current_layout)
   grid_ui.set_rotation(z_offset)
 

@@ -38,12 +38,10 @@ Patch `out1 → VCO 1V/oct`, `out2 → envelope gate/trig`. The gate is an AR sh
 - **grid** — the **leftmost column is the rotation strip**; the rest is the
   isomorphic keyboard. Lit keyboard cells are CPS members (the anchor
   brightest); held notes light full. Press to play.
-- **rotation strip** (grid column 1) — each row is an offset along the CPS
-  rotation axis. The centre row is home (offset 0); the lit row is the current
-  slice. Because one flat projection can't show every note of a
-  higher-dimensional CPS at once, pressing up/down the strip slides the visible
-  slice to a parallel one — sweep it to reach **all** notes in the set, while
-  chord shapes stay identical. (E2 rotates via encoder too.)
+- **rotation strip** (grid column 1) — the centre row is home; the lit row is
+  current. In **scale** layout it transposes the whole board by octaves; in
+  **lattice** layout it slides the visible slice to a parallel one to reach
+  notes outside the current projection. (E2 does the same via encoder.)
 - **E1** — root volts (transpose the whole board).
 - **K1** — panic (all notes off).
 - **K2** — toggle scale-builder / play focus.

@@ -16,7 +16,7 @@ local PRESETS = {
 params_setup.PRESETS = PRESETS
 
 function params_setup.init(rebuild, crow_out)
-  params:add_group("un-natural", 18)   -- nests the next 18 params
+  params:add_group("un-natural", 19)   -- nests the next 19 params
 
   local names = {}
   for i, p in ipairs(PRESETS) do names[i] = p.name end
@@ -35,6 +35,10 @@ function params_setup.init(rebuild, crow_out)
 
   params:add_number("un_k", "k (choose)", 1, 8, 2)
   params:set_action("un_k", function() rebuild() end)
+
+  params:add_option("un_layout", "layout",
+    { "scale (dense)", "lattice (geometric)" }, 1)
+  params:set_action("un_layout", function() rebuild() end)
 
   params:add_option("un_gen_mode", "generators", { "auto", "manual" }, 1)
   params:set_action("un_gen_mode", function() rebuild() end)
