@@ -32,11 +32,14 @@ local function header(scale)
   screen.level(4)
   screen.move(0, 17)
   screen.text(scale.count .. " notes")
+  screen.level(6)
+  screen.move(127, 8)
+  local tag = ""
+  if display._cols then tag = display._cols .. " col" end
   if display._rot and display._rot ~= 0 then
-    screen.level(6)
-    screen.move(127, 8)
-    screen.text_right(string.format("rot %+d", display._rot))
+    tag = string.format("oct%+d  %s", display._rot, tag)
   end
+  screen.text_right(tag)
 end
 
 -- LATTICE GRAPH -------------------------------------------------------------
@@ -158,6 +161,7 @@ end
 -- state = { view, focus, scale, active, scroll, builder }
 function display.redraw(state)
   display._rot = state.z_offset or 0
+  display._cols = state.num_cols
   screen.clear()
   if state.focus == "builder" then
     display.builder(state.builder, state.scale)

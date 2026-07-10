@@ -2,10 +2,12 @@
 -- Erv Wilson Combination Product Sets
 -- as an isomorphic grid keyboard -> Crow
 --
--- grid : isomorphic CPS keyboard (JI lattice projection)
---        leftmost column = rotation strip: slides the visible slice so every
---        note in the set is reachable (chord shapes stay constant)
+-- grid : isomorphic CPS keyboard. left col = octave transpose; bottom row
+--        (col 2+) = number of active columns (sets the up/down interval).
+--        left/right = col interval (param); up/down = number of columns.
+--        Only the anchor pitch class is lit; played notes light on top.
 -- E1   : root volts (transpose the whole board)
+-- E2   : octave transpose (same as left strip)
 -- K1   : panic (all notes off)
 -- K2   : toggle scale-builder / play
 -- K3   : cycle view (lattice / ring / list)
@@ -29,7 +31,8 @@ local scale, current_layout
 local active = { freq = {}, class = {} }
 local freq_count, class_count = {}, {}
 local nonmembers_playable = false
-local z_offset = 0             -- rotation-strip offset along the CPS rotation axis
+local z_offset = 0             -- left-strip offset (octave transpose / slice rotation)
+local num_cols = nil           -- active keyboard columns (bottom row); nil = auto
 local builder = { factors = { 1, 3, 5, 7 }, k = 2, cursor = 1 }
 local view = 1                 -- 1 lattice, 2 ring, 3 list
 local focus = "keyboard"       -- "keyboard" | "builder"
@@ -66,10 +69,15 @@ local function rebuild()
 
   nonmembers_playable = params:get("un_nonmembers") == 2
 
+  -- active keyboard columns (set by the bottom row); default to one octave wide
+  local maxw = grid_ui.playing_width()
+  if num_cols == nil then num_cols = math.min(scale.count, maxw) end
+  num_cols = util.clamp(num_cols, 1, maxw)
+
   local mode = (params:get("un_layout") == 2) and "lattice" or "scale"
   local opts = {
     mode = mode,
-    grid_w = grid_ui.playing_width(), grid_h = grid_ui.height(),
+    grid_w = maxw, grid_h = grid_ui.keyboard_height(),
     origin_x = params:get("un_origin_x"), origin_y = params:get("un_origin_y"),
     root_freq = params:get("un_root_hz"),
   }
@@ -88,13 +96,17 @@ local function rebuild()
     opts.anchor_ratio = ji.octave_reduce(scale.notes[anchor_i].ratio * (gz ^ z_offset))
     opts.nonmember_level = nonmembers_playable and 2 or 0
   else
-    -- scale mode: rotation strip transposes the whole board by octaves
+    -- scale mode: left strip transposes by octaves; bottom row sets columns
     opts.z_offset = z_offset
+    opts.num_cols = num_cols
+    opts.col_step = params:get("un_col_step")
+    opts.anchor_degree = util.clamp(params:get("un_anchor"), 1, scale.count)
   end
 
   current_layout = layout_lib.build(scale, opts)
   grid_ui.set_layout(current_layout)
   grid_ui.set_rotation(z_offset)
+  grid_ui.set_cols(num_cols)
 
   -- keep the builder view in sync with the source-of-truth params
   builder.factors = factors
@@ -107,6 +119,7 @@ end
 
 -- ---- note routing (single fan-out point) ----
 local function note_on_cell(cell)
+  if cell.active == false then return end          -- inactive column
   if not cell.member and not nonmembers_playable then return end
   local f, ck = cell.freq, cell.class_key
   freq_count[f] = (freq_count[f] or 0) + 1
@@ -127,9 +140,16 @@ local function note_off_cell(cell)
   grid_redraw()
 end
 
--- rotation strip: shift the visible lattice slice along the CPS rotation axis
+-- left strip: octave transpose (scale) / slice rotation (lattice)
 local function rotate(offset)
   z_offset = offset
+  rebuild()
+  redraw()
+end
+
+-- bottom row: set how many columns the keyboard uses (changes the up/down interval)
+local function set_cols(n)
+  num_cols = util.clamp(n, 1, grid_ui.playing_width())
   rebuild()
   redraw()
 end
@@ -160,7 +180,7 @@ end
 -- ---- lifecycle ----
 function init()
   crow_out.setup()
-  grid_ui.set_handlers(note_on_cell, note_off_cell, rotate)
+  grid_ui.set_handlers(note_on_cell, note_off_cell, rotate, set_cols)
   params_setup.init(rebuild, crow_out)
   params:bang()                                  -- fires actions incl. rebuild()
 
@@ -209,7 +229,7 @@ function redraw()
   display.redraw({
     view = view, focus = focus, scale = scale,
     active = active, scroll = scroll, builder = builder,
-    z_offset = z_offset,
+    z_offset = z_offset, num_cols = num_cols,
   })
 end
 

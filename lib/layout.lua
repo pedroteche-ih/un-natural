@@ -23,49 +23,46 @@ local function class_key(member, reduced)
   return string.format("f%.4f", reduced)
 end
 
--- how many scale degrees reach the CPS note nearest a 3/2 fifth (the row step)
-local function fifth_degrees(scale)
-  local best, bestdiff = 1, math.huge
-  for i, note in ipairs(scale.notes) do
-    local d = math.abs(note.ratio - 3 / 2)
-    if d < bestdiff then bestdiff = d; best = i end
-  end
-  local offset = best - 1
-  if offset == 0 then offset = math.max(1, math.floor(#scale.notes / 2)) end
-  return offset
-end
-
--- DENSE scale-degree isomorphic layout ------------------------------------
--- z_offset transposes the whole board by octaves (the rotation strip).
+-- SCALE-DEGREE isomorphic layout ------------------------------------------
+-- Cells tile the scale as a "typewriter wrap": each column adds col_step pitch
+-- classes (left/right interval); each row up adds num_cols pitch classes
+-- (up/down interval), so the vertical relationship follows the column count.
+-- Only the first num_cols columns are active; the rest are dark. Only the
+-- anchor pitch class is lit as a landmark -- held notes light on top.
+-- z transposes the whole board by octaves (the left strip).
 local function build_scale(scale, opts, cells, class_xy)
   local w, h = opts.grid_w, opts.grid_h
-  local ox = opts.origin_x or 1
-  local oy = opts.origin_y or 1
   local root_freq = opts.root_freq or 130.81
   local z = opts.z_offset or 0
   local N = #scale.notes
-  local offset = fifth_degrees(scale)
+  local col_step = opts.col_step or 1
+  local num_cols = math.min(opts.num_cols or w, w)
+  local row_step = num_cols                          -- up/down = number of columns
+  local anchor_deg = opts.anchor_degree or 1
 
   for x = 1, w do
     cells[x] = {}
     for y = 1, h do
-      local n = (x - ox) + ((h - y + 1) - oy) * offset   -- degree index from root
-      local oct = math.floor(n / N) + z
-      local deg = n - math.floor(n / N) * N               -- 0 .. N-1
-      local note = scale.notes[deg + 1]
-      local mult = (2 ^ oct) * note.ratio
-      local freq = root_freq * mult
-      local member = deg + 1
-
-      local level = (deg == 0) and 12 or 6                -- tonic brighter
-      local ck = class_key(member, note.ratio)
-      local cell = {
-        x = x, y = y, mult = mult, freq = freq, reduced = note.ratio,
-        class_key = ck, member = member, base_level = level,
-      }
-      cells[x][y] = cell
-      class_xy[ck] = class_xy[ck] or {}
-      table.insert(class_xy[ck], { x, y })
+      if x <= num_cols then
+        local up = h - y + 1                          -- bottom keyboard row = 1
+        local n = (x - 1) * col_step + (up - 1) * row_step
+        local oct = math.floor(n / N) + z
+        local deg = n - math.floor(n / N) * N          -- 0 .. N-1
+        local note = scale.notes[deg + 1]
+        local mult = (2 ^ oct) * note.ratio
+        local freq = root_freq * mult
+        local member = deg + 1
+        local level = (member == anchor_deg) and 12 or 0   -- anchor landmark only
+        local ck = class_key(member, note.ratio)
+        cells[x][y] = {
+          x = x, y = y, mult = mult, freq = freq, reduced = note.ratio,
+          class_key = ck, member = member, base_level = level, active = true,
+        }
+        class_xy[ck] = class_xy[ck] or {}
+        table.insert(class_xy[ck], { x, y })
+      else
+        cells[x][y] = { x = x, y = y, base_level = 0, active = false }
+      end
     end
   end
 end
@@ -104,7 +101,7 @@ local function build_lattice(scale, opts, cells, class_xy)
       local ck = class_key(member, reduced)
       local cell = {
         x = x, y = y, mult = mult, freq = freq, reduced = reduced,
-        class_key = ck, member = member, base_level = level,
+        class_key = ck, member = member, base_level = level, active = true,
       }
       cells[x][y] = cell
       class_xy[ck] = class_xy[ck] or {}

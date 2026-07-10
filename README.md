@@ -35,13 +35,16 @@ Patch `out1 → VCO 1V/oct`, `out2 → envelope gate/trig`. The gate is an AR sh
 
 ## Controls
 
-- **grid** — the **leftmost column is the rotation strip**; the rest is the
-  isomorphic keyboard. Lit keyboard cells are CPS members (the anchor
-  brightest); held notes light full. Press to play.
-- **rotation strip** (grid column 1) — the centre row is home; the lit row is
-  current. In **scale** layout it transposes the whole board by octaves; in
-  **lattice** layout it slides the visible slice to a parallel one to reach
-  notes outside the current projection. (E2 does the same via encoder.)
+- **grid** — the keyboard, framed by two control strips. In **scale** layout
+  only the **anchor pitch class** is lit (a landmark); played notes light on top.
+  Moving **right** adds the column interval (default 1 pitch class); moving **up**
+  adds the current *number of columns* — so the vertical interval follows the
+  column count.
+- **left column** (x=1) — octave transpose (scale layout) / slice rotation
+  (lattice layout). Centre row is home; the lit row is current. (E2 does the same.)
+- **bottom row** (from column 2) — sets the **number of active columns**. Fewer
+  columns → a smaller up/down interval; this is the main way to explore the
+  left/right vs up/down relationship. Unused columns go dark.
 - **E1** — root volts (transpose the whole board).
 - **K1** — panic (all notes off).
 - **K2** — toggle scale-builder / play focus.
