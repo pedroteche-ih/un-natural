@@ -26,6 +26,12 @@ function ji.clamp(x, lo, hi)
   if x < lo then return lo elseif x > hi then return hi else return x end
 end
 
+-- exponential map of an integer index (1..n) onto [lo, hi]; idx=1 -> lo, idx=n -> hi
+function ji.expmap(idx, n, lo, hi)
+  if n <= 1 then return lo end
+  return lo * ((hi / lo) ^ ((idx - 1) / (n - 1)))
+end
+
 function ji.gcd(a, b)
   a, b = math.floor(a), math.floor(b)
   while b ~= 0 do a, b = b, a % b end

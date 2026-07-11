@@ -1,177 +1,65 @@
--- display.lua -- 128x64 screen views for un-natural.
--- Views cycled with K3: lattice graph, pitch ring, ratio list.
--- Builder screen (K2 focus) edits the factor set + k.
+-- display.lua -- 128x64 screen for the Hexany chord-trigger.
+-- Shows the hexany's factors + 6 ratios (selected ones highlighted), the octave,
+-- and the last-triggered envelope (attack/release) with a small AR sketch.
 
 local display = {}
 
-local CX, CY, R = 82, 36, 24   -- graph/ring centre and radius (left area for text)
-
--- a scale note (index i) is sounding if its member key is in the active set
-local function is_on(active, i) return active["m" .. i] end
-
-local function node_pos(note)
-  local a = -math.pi / 2 + 2 * math.pi * (note.cents / 1200)
-  return CX + R * math.cos(a), CY + R * math.sin(a)
+local function fmt_time(t)
+  if not t then return "-" end
+  if t < 1 then return string.format("%dms", math.floor(t * 1000 + 0.5)) end
+  return string.format("%.2fs", t)
 end
 
--- two CPS notes are adjacent iff their subsets differ by exactly one factor
-local function adjacent(a, b, k)
-  local shared = 0
-  for _, i in ipairs(a.subset) do
-    for _, j in ipairs(b.subset) do
-      if i == j then shared = shared + 1 end
-    end
-  end
-  return shared == k - 1
-end
+-- state = { scale, selected_set = {[i]=true}, octave, last_env = {atk,rel}, amp }
+function display.redraw(state)
+  screen.clear()
+  local scale = state.scale
+  if not scale then screen.update(); return end
 
-local function header(scale)
+  -- header: name + factors
   screen.level(15)
   screen.move(0, 8)
-  screen.text(scale.name)
+  screen.text("un-natural")
   screen.level(4)
-  screen.move(0, 17)
-  screen.text(scale.count .. " notes")
-  screen.level(6)
   screen.move(127, 8)
-  local tag = ""
-  if display._cols then tag = display._cols .. " col" end
-  if display._rot and display._rot ~= 0 then
-    tag = string.format("oct%+d  %s", display._rot, tag)
-  end
-  screen.text_right(tag)
-end
+  screen.text_right(table.concat(scale.factors, "\183"))   -- middle dot
 
--- LATTICE GRAPH -------------------------------------------------------------
-function display.lattice(scale, active)
-  header(scale)
-  local pos = {}
-  for i, note in ipairs(scale.notes) do
-    pos[i] = { node_pos(note) }
-  end
-  -- edges first
-  screen.level(2)
-  for i = 1, #scale.notes do
-    for j = i + 1, #scale.notes do
-      if adjacent(scale.notes[i], scale.notes[j], scale.k) then
-        screen.move(pos[i][1], pos[i][2])
-        screen.line(pos[j][1], pos[j][2])
-        screen.stroke()
-      end
-    end
-  end
-  -- nodes
-  for i, note in ipairs(scale.notes) do
-    local on = is_on(active, i)
-    screen.level(on and 15 or 6)
-    screen.circle(pos[i][1], pos[i][2], on and 2.5 or 1.5)
-    screen.fill()
-    screen.level(on and 15 or 3)
-    screen.move(pos[i][1] + 4, pos[i][2] + 2)
-    screen.text(note.label)
-  end
-end
-
--- PITCH RING ----------------------------------------------------------------
-function display.ring(scale, active)
-  header(scale)
-  screen.level(2)
-  screen.circle(CX, CY, R)
-  screen.stroke()
-  for i, note in ipairs(scale.notes) do
-    local x, y = node_pos(note)
-    local on = is_on(active, i)
-    screen.level(on and 15 or 6)
-    screen.circle(x, y, on and 2.5 or 1.5)
-    screen.fill()
-  end
-  screen.level(4)
-  screen.move(0, 30)
-  screen.text("ring")
-  screen.move(0, 40)
-  screen.text("cents")
-end
-
--- RATIO LIST ----------------------------------------------------------------
-function display.list(scale, active, scroll)
-  scroll = scroll or 0
-  screen.level(15)
-  screen.move(0, 8)
+  screen.level(6)
+  screen.move(0, 18)
   screen.text(scale.name)
-  local rows = 6
-  for row = 1, rows do
-    local i = row + scroll
-    local note = scale.notes[i]
-    if note then
-      local y = 8 + row * 8
-      local on = is_on(active, i)
-      screen.level(on and 15 or 4)
-      screen.move(0, y)
-      screen.text(note.num .. "/" .. note.den)
-      screen.move(48, y)
-      screen.text(note.label)
-      screen.move(88, y)
-      screen.text(string.format("%dc", math.floor(note.cents + 0.5)))
-    end
-  end
-end
+  screen.move(127, 18)
+  screen.text_right(string.format("oct %+d", state.octave or 0))
 
--- BUILDER -------------------------------------------------------------------
--- b = { factors = {..}, k = n, cursor = i }  (cursor #factors+1 edits k)
-function display.builder(b, scale)
-  screen.level(15)
-  screen.move(0, 8)
-  screen.text("build: " .. scale.name)
-  screen.level(4)
-  screen.move(0, 17)
-  screen.text(scale.count .. " notes   " .. b.k .. ")" .. #b.factors)
-
-  local x = 0
-  for i, f in ipairs(b.factors) do
-    local sel = (b.cursor == i)
-    local s = tostring(f)
-    screen.level(sel and 15 or 5)
-    screen.move(x, 36)
-    screen.text(s)
-    if sel then
-      screen.level(15)
-      screen.move(x - 1, 40)
-      screen.line(x + screen.text_extents(s) + 1, 40)
+  -- 6 ratios, 3 per row; selected highlighted
+  local sel = state.selected_set or {}
+  local cols = { 0, 44, 86 }
+  for i, note in ipairs(scale.notes) do
+    local row = (i <= 3) and 0 or 1
+    local x = cols[((i - 1) % 3) + 1]
+    local y = 32 + row * 12
+    local on = sel[i]
+    screen.level(on and 15 or 3)
+    screen.move(x, y)
+    screen.text(note.num .. "/" .. note.den)
+    if on then
+      screen.move(x, y + 2)
+      screen.line(x + screen.text_extents(note.num .. "/" .. note.den), y + 2)
       screen.stroke()
     end
-    x = x + screen.text_extents(s) + 8
   end
 
-  local ksel = (b.cursor == #b.factors + 1)
-  screen.level(ksel and 15 or 5)
-  screen.move(0, 54)
-  screen.text("k = " .. b.k)
-  if ksel then
-    screen.move(0, 58)
-    screen.line(screen.text_extents("k = " .. b.k), 58)
-    screen.stroke()
-  end
-
-  screen.level(2)
-  screen.move(0, 63)
-  screen.text("E2 cursor  E3 value  K2 play")
-end
-
--- DISPATCH ------------------------------------------------------------------
--- state = { view, focus, scale, active, scroll, builder }
-function display.redraw(state)
-  display._rot = state.z_offset or 0
-  display._cols = state.num_cols
-  screen.clear()
-  if state.focus == "builder" then
-    display.builder(state.builder, state.scale)
-  elseif state.view == 1 then
-    display.lattice(state.scale, state.active)
-  elseif state.view == 2 then
-    display.ring(state.scale, state.active)
+  -- last envelope + level
+  local e = state.last_env
+  screen.level(6)
+  screen.move(0, 62)
+  if e then
+    screen.text("A " .. fmt_time(e.atk) .. "  R " .. fmt_time(e.rel))
   else
-    display.list(state.scale, state.active, state.scroll)
+    screen.text("select notes, tap pad")
   end
+  screen.move(127, 62)
+  screen.text_right(string.format("amp %.2f", state.amp or 0))
+
   screen.update()
 end
 

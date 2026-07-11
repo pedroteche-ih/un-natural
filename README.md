@@ -1,98 +1,79 @@
 # un-natural
 
-An isomorphic grid keyboard for **Erv Wilson's Combination Product Sets (CPS)**,
-for [norns](https://monome.org/docs/norns/) + a monome grid, with pitch/gate
-output to **Monome Crow**.
+A **Hexany chord-trigger instrument** for [norns](https://monome.org/docs/norns/)
++ a monome grid, with a built-in sine engine and pitch/envelope output to
+**Monome Crow**.
 
-CPS are just-intonation scales built by taking a set of *n* factors and
-multiplying every *k*-element subset together, octave-reduced:
-
-| set | *n*)*k* | notes | factors |
-|---|---|---|---|
-| Hexany | 2)4 | 6 | 1·3·5·7 |
-| Dekany | 2)5 / 3)5 | 10 | 1·3·5·7·9 |
-| Pentadekany | 2)6 | 15 | 1·3·5·7·9·11 |
-| Eikosany | 3)6 | 20 | 1·3·5·7·9·11 |
-
-The default is the **Hexany** (`35/32, 5/4, 21/16, 3/2, 7/4, 15/8`).
+A Hexany is Erv Wilson's 2-of-4 Combination Product Set: take four factors
+(default `1·3·5·7`), multiply every pair, octave-reduce → six just-intonation
+notes: `35/32, 5/4, 21/16, 3/2, 7/4, 15/8`. You pick up to three of them and
+strike the chord with a one-shot AR envelope chosen from an 8×8 pad.
 
 ## Install
 
-Copy the `un-natural/` folder to `~/dust/code/` on your norns and select
+Copy the `un-natural/` folder to `~/dust/code/` on your norns. Because it ships a
+SuperCollider engine, run `;restart` in maiden once (to compile it), then select
 `un-natural` in SELECT / maiden.
 
-## Output — Crow
+## Grid (8 rows × 16 cols)
 
-Crow gives **exact** just intonation: CV is 1V/oct and continuous, so a ratio's
-voltage is simply `base_volts + log2(ratio)` — no pitch-bend tricks.
+```
+col  1     2 3 4 5 6 7 8 9        10..16
+     ┌──┐ ┌─────────────────┐
+     │N6│ │                 │     (unused)
+     │N5│ │   ENVELOPE PAD  │
+     │N4│ │   X = attack →  │
+     │N3│ │   Y = release ↑ │
+     │N2│ │                 │
+     │N1│ │                 │
+     │O+│ │                 │
+     │O-│ └─────────────────┘
+     └──┘
+```
 
-- **1-voice** mode (default): `out1` = CV (1V/oct), `out2` = gate/envelope.
-- **2-voice** mode: `out1/out2` = voice A, `out3/out4` = voice B.
+- **Column 1** — note selector: rows 1–6 are the six hexany notes (bottom =
+  lowest); row 7 = octave up, row 8 = octave down. Select up to **three** notes;
+  a 4th press drops the oldest, and pressing a selected note deselects it.
+  Selecting is silent — it just arms the chord and sets the Crow pitch CVs.
+- **Columns 2–9** — 8×8 AR-envelope pad. Left→right = attack (short→long),
+  bottom→top = release (short→long). **Press a cell to trigger** the armed chord
+  with that envelope (one-shot; retriggerable).
+- **Columns 10–16** — unused.
 
-Patch `out1 → VCO 1V/oct`, `out2 → envelope gate/trig`. The gate is an AR shape
-(`gate attack` / `gate release` params); set attack to 0 for a hard gate.
-`root volts` places the 1/1 reference; `cv slew` adds portamento.
+## Output
 
-## Controls
+Both sound at once:
 
-- **grid** — the keyboard, framed by two control strips. In **scale** layout
-  only the **anchor pitch class** is lit (a landmark); played notes light on top.
-  Moving **right** adds the column interval (default 1 pitch class); moving **up**
-  adds the current *number of columns* — so the vertical interval follows the
-  column count.
-- **left column** (x=1) — octave transpose (scale layout) / slice rotation
-  (lattice layout). Centre row is home; the lit row is current. (E2 does the same.)
-- **bottom row** (from column 2) — sets the **number of active columns**. Fewer
-  columns → a smaller up/down interval; this is the main way to explore the
-  left/right vs up/down relationship. Unused columns go dark.
-- **E1** — root volts (transpose the whole board).
-- **K1** — panic (all notes off).
-- **K2** — toggle scale-builder / play focus.
-- **K3** — cycle the on-screen view: lattice graph → pitch ring → ratio list.
-- **builder** (K2): **E2** moves the cursor across the factors, then *k*, then
-  the factor-count; **E3** changes the value under the cursor.
+- **Sine engine** — plays the selected notes as sine voices through the chosen
+  AR envelope.
+- **Crow** — `out1/2/3` = the three selected pitches (1V/oct, exact just
+  intonation: `volts = base_volts + log2(ratio)`); `out4` = the shared AR
+  envelope, fired on each trigger. Patch `out1–3 → VCO 1V/oct`, `out4 → VCA`.
 
-Everything else lives in PARAMETERS → `un-natural` (presets, generators,
-anchor, off-scale behaviour, output). Params save/load with PSET.
+## Screen & knobs
 
-## How the layout works (and a note on geometry)
+The screen shows the factor set, the six ratios (selected ones underlined), the
+octave, and the last-triggered attack/release. **E1** = sine level, **E2** =
+octave, **K1** = panic (clear selection / silence).
 
-The grid is a **2D window into the JI lattice**. Two axis generators map to the
-grid's axes — moving one cell right multiplies pitch by `gen_x`, one cell up by
-`gen_y` — so **every chord is a fixed shape you can slide anywhere**. Octaves
-are preserved across the board; a cell lights if its octave-reduced ratio is a
-CPS member.
+## PARAMETERS
 
-In **auto** generator mode, the two axes are derived from the CPS graph: the two
-smallest factor-swap intervals from the anchor note. This keeps neighbouring
-cells on CPS members, so members form compact, movable clusters.
-
-**Geometry caveat (by design, not a bug):** a CPS over three or more independent
-primes is genuinely higher-dimensional than a flat grid. The Hexany, for
-instance, is an octahedron — no 2D isomorphic tiling can show all six notes at
-once; a single projection shows a 4-note slice. The **rotation strip** (grid
-column 1) solves this: it shifts the anchor along a third generator, sliding the
-slice to a parallel one, so the whole set is reachable in a few presses. (You
-can also change the **anchor note** or switch generators to **manual** in
-PARAMETERS.) Larger sets (Eikosany) show most of their notes in a single view.
-
-Set **off-scale cells** to *playable* to also sound the non-CPS lattice points
-between members (they show dim) for free exploration.
+Grouped into sections: **hexany** (four factor numbers + root Hz), **envelope**
+(attack/release min–max for the pad), **crow** (root volts, envelope peak, CV
+slew), **engine** (sine level). Params save/load with PSET.
 
 ## Files
 
-- `un-natural.lua` — entry: lifecycle, note routing, builder, redraw.
-- `lib/cps.lua` — CPS math (combinations, products, naming, graph, generators).
-- `lib/ji.lua` — just-intonation helpers (octave-reduce, cents, ratio→volts).
-- `lib/layout.lua` — isomorphic lattice projection onto grid cells.
-- `lib/grid_ui.lua` — grid drawing + key handling.
-- `lib/crow_out.lua` — CV/gate output + voice allocation.
-- `lib/display.lua` — screen views + scale builder.
+- `un-natural.lua` — entry: state, selection, trigger, lifecycle.
+- `lib/cps.lua` — CPS math (combinations, products, naming).
+- `lib/ji.lua` — just-intonation helpers (octave-reduce, cents, ratio→volts, expmap).
+- `lib/grid_ui.lua` — grid zones (note selector + envelope pad).
+- `lib/crow_out.lua` — Crow output (3 pitch CVs + AR envelope).
+- `lib/display.lua` — the instrument screen.
 - `lib/params_setup.lua` — PARAMETERS menu.
+- `lib/Engine_UnNatural.sc` — one-shot AR sine engine (run `;restart` after edits).
 
 ## Roadmap
 
-SuperCollider engine output, MPE MIDI out (for CPS chords on external synths),
-spanning multiple physical grids as one surface, and a sequencer/arpeggiator.
-`note_on`/`note_off` is the single fan-out point, so these slot in without
-disturbing the CPS/layout core.
+Waveform choice beyond sine, per-note envelopes, a sustain/gated mode, velocity,
+chord/envelope snapshots, MIDI.
