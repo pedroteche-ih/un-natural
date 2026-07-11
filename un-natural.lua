@@ -18,7 +18,20 @@ local crow_out   = include("un-natural/lib/crow_out")
 local display    = include("un-natural/lib/display")
 local params_setup = include("un-natural/lib/params_setup")
 
-engine.name = "UnNatural"
+-- Only claim the engine if it actually compiled. Otherwise setting engine.name
+-- fails the whole script load (blank screen). If missing, the script still runs
+-- (Crow works, sine silent) and prompts to run ;restart in maiden.
+local function engine_available(name)
+  if engine and engine.names then
+    for _, n in ipairs(engine.names) do
+      if n == name then return true end
+    end
+  end
+  return false
+end
+
+local engine_ok = engine_available("UnNatural")
+if engine_ok then engine.name = "UnNatural" end
 
 -- ---- state ----
 local scale
@@ -60,6 +73,7 @@ function redraw()
     octave = octave,
     last_env = last_env,
     amp = params:get("un_amp"),
+    engine_ok = engine_ok,
   })
 end
 

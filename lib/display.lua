@@ -50,9 +50,11 @@ function display.redraw(state)
 
   -- last envelope + level
   local e = state.last_env
-  screen.level(6)
+  screen.level(state.engine_ok == false and 15 or 6)
   screen.move(0, 62)
-  if e then
+  if state.engine_ok == false then
+    screen.text("engine off - run ;restart")
+  elseif e then
     screen.text("A " .. fmt_time(e.atk) .. "  R " .. fmt_time(e.rel))
   else
     screen.text("select notes, tap pad")
