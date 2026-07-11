@@ -39,7 +39,6 @@ local selected = {}            -- ordered list of note indices (max 3)
 local selected_set = {}        -- {[note_index] = true}
 local octave = 0
 local last_env = nil           -- { atk=, rel=, atk_idx=, rel_idx= }
-local redraw_metro
 
 -- ---- helpers ----
 local function rebuild_selected_set()
@@ -153,8 +152,8 @@ function init()
   params_setup.init(rebuild, crow_out)
   params:bang()                                  -- fires factor actions incl. rebuild()
 
-  redraw_metro = metro.init(function() redraw() end, 1 / 15, -1)
-  redraw_metro:start()
+  -- No free-running redraw loop: nothing animates, and a metro-driven redraw()
+  -- would draw over the norns system menu and make it unusable. Redraw on events.
   grid_redraw()
   redraw()
 end
@@ -174,7 +173,6 @@ function key(n, z)
 end
 
 function cleanup()
-  if redraw_metro then redraw_metro:stop() end
   crow_out.all_off()
   crow_out.reset()
 end
