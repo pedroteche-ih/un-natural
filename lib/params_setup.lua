@@ -22,13 +22,13 @@ function params_setup.init(rebuild, crow_out)
   -- ---- envelope (AR pad ranges) ----
   params:add_group("un-natural: envelope", 4)
   params:add_control("un_atk_min", "attack min",
-    controlspec.new(0.001, 1, "exp", 0, 0.002, "s"))
+    controlspec.new(0.001, 3, "exp", 0, 0.005, "s"))
   params:add_control("un_atk_max", "attack max",
-    controlspec.new(0.01, 4, "exp", 0, 1.0, "s"))
+    controlspec.new(0.01, 8, "exp", 0, 3.0, "s"))
   params:add_control("un_rel_min", "release min",
-    controlspec.new(0.001, 1, "exp", 0, 0.01, "s"))
+    controlspec.new(0.001, 3, "exp", 0, 0.5, "s"))
   params:add_control("un_rel_max", "release max",
-    controlspec.new(0.05, 12, "exp", 0, 6.0, "s"))
+    controlspec.new(0.05, 12, "exp", 0, 3.0, "s"))
 
   -- ---- crow ----
   params:add_group("un-natural: crow", 3)
